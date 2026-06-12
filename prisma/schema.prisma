@@ -22,6 +22,7 @@ model User {
 
   workspaces   WorkspaceMember[]
   tasks        Task[]
+  notes        PlayerNote[]
 }
 
 model Workspace {
@@ -61,4 +62,27 @@ model Task {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
   assignee    User?     @relation(fields: [assignedTo], references: [id])
+}
+
+model Player {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  status    String   @default("pending_verification")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notes     PlayerNote[]
+}
+
+model PlayerNote {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+
+  playerId  Int
+  authorId  Int
+
+  player    Player   @relation(fields: [playerId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
 }

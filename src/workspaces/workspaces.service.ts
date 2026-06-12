@@ -36,24 +36,28 @@ export class WorkspacesService {
     });
   }
 
-  async findOne(id: number, userId: number) {
-    const workspace = await this.prisma.workspace.findUnique({
-      where: { id },
-      include: {
-        members: {
-          include: { user: { select: { id: true, email: true, role: true } } },
-        },
-        tasks: true,
+async findOne(id: number, userId: number) {
+  const workspace = await this.prisma.workspace.findUnique({
+    where: { id },
+    include: {
+      members: {
+        include: { user: { select: { id: true, email: true, role: true } } },
       },
-    });
+      tasks: {
+        include: {
+          assignee: { select: { id: true, email: true } },
+        },
+      },
+    },
+  });
 
-    if (!workspace) throw new NotFoundException('Workspace no encontrado');
+  if (!workspace) throw new NotFoundException('Workspace no encontrado');
 
-    const isMember = workspace.members.some(m => m.userId === userId);
-    if (!isMember) throw new ForbiddenException('No tienes acceso a este workspace');
+  const isMember = workspace.members.some(m => m.userId === userId);
+  if (!isMember) throw new ForbiddenException('No tienes acceso a este workspace');
 
-    return workspace;
-  }
+  return workspace;
+}
 
   async update(id: number, name: string, userId: number) {
     const member = await this.prisma.workspaceMember.findUnique({

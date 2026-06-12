@@ -7,6 +7,7 @@ import { PrismaService } from './prisma.service';
 import { AdminModule } from './admin/admin.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { TasksModule } from './tasks/tasks.module';
+import { PlayersModule } from './players/players.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TasksModule } from './tasks/tasks.module';
     AdminModule,
     WorkspacesModule,
     TasksModule,
+    PlayersModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
