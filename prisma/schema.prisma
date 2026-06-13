@@ -20,9 +20,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  workspaces   WorkspaceMember[]
-  tasks        Task[]
-  notes        PlayerNote[]
+  workspaces      WorkspaceMember[]
+  tasks           Task[]
+  notes           PlayerNote[]
+  ticketsCreated  Ticket[]        @relation("TicketCreatedBy")
+  ticketsAssigned Ticket[]        @relation("TicketAssignedTo")
+  ticketComments  TicketComment[]
 }
 
 model Workspace {
@@ -72,7 +75,8 @@ model Player {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  notes     PlayerNote[]
+  notes    PlayerNote[]
+  tickets  Ticket[]
 }
 
 model PlayerNote {
@@ -84,5 +88,38 @@ model PlayerNote {
   authorId  Int
 
   player    Player   @relation(fields: [playerId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model Ticket {
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String
+  priority     String    @default("MEDIUM")
+  status       String    @default("OPEN")
+  department   String
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdById  Int
+  assignedToId Int?
+  playerId     Int?
+
+  createdBy    User      @relation("TicketCreatedBy", fields: [createdById], references: [id])
+  assignedTo   User?     @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
+  player       Player?   @relation(fields: [playerId], references: [id])
+  comments     TicketComment[]
+}
+
+model TicketComment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+
+  ticketId  Int
+  authorId  Int
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
   author    User     @relation(fields: [authorId], references: [id])
 }

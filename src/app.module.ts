@@ -8,6 +8,7 @@ import { AdminModule } from './admin/admin.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PlayersModule } from './players/players.module';
+import { TicketsModule } from './tickets/tickets.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PlayersModule } from './players/players.module';
     WorkspacesModule,
     TasksModule,
     PlayersModule,
+    TicketsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
