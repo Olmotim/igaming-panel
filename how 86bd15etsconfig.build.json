@@ -1,0 +1,10 @@
+[33m3a91fc2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m add department filter for tickets and user department management
+[33m7e1015f[m add dashboard metrics endpoint
+[33m8b30a34[m add tickets module with comments and status tracking
+[33m01640fc[m chore: remove dist from git tracking
+[33mb97ffe5[m /dist
+[33m86bd15e[m chore: remove dockerfile, use nixpacks
+[33m6495c16[m fix: include dist in repository for railway deployment
+[33m7dbea48[m fix: fix tsconfig for nestjs commonjs compatibility
+[33m8171182[m fix: force redeploy
+[33m01d4908[m fix: explicit build steps in dockerfile
