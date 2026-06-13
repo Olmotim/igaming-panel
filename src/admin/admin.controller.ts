@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,4 +17,11 @@ export class AdminController {
     return this.adminService.getUsers();
   }
 
+  @Put('users/:id/department')
+updateUserDepartment(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() body: { department: string },
+) {
+  return this.adminService.updateUserDepartment(id, body.department);
+}
 }

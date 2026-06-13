@@ -18,7 +18,7 @@ export class TicketsService {
       data: {
         title,
         description,
-        department,
+        department: department.toUpperCase(),
         priority,
         createdById,
         playerId,
@@ -28,25 +28,29 @@ export class TicketsService {
     });
   }
 
-  async findAll(filters?: {
-    status?: string;
-    department?: string;
-    priority?: string;
-    createdById?: number;
-    assignedToId?: number;
-  }) {
-    return this.prisma.ticket.findMany({
-      where: {
-        ...(filters?.status && { status: filters.status }),
-        ...(filters?.department && { department: filters.department }),
-        ...(filters?.priority && { priority: filters.priority }),
-        ...(filters?.createdById && { createdById: filters.createdById }),
-        ...(filters?.assignedToId && { assignedToId: filters.assignedToId }),
-      },
-      include: this.ticketIncludes(),
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+async findAll(userId: number, userRole: string, userDepartment: string | null, filters?: {
+  status?: string;
+  department?: string;
+  priority?: string;
+  createdById?: number;
+  assignedToId?: number;
+}) {
+  const departmentFilter = userRole === 'admin' 
+    ? filters?.department 
+    : userDepartment?.toUpperCase() ?? undefined;
+
+  return this.prisma.ticket.findMany({
+    where: {
+      ...(departmentFilter && { department: departmentFilter }),
+      ...(filters?.status && { status: filters.status }),
+      ...(filters?.priority && { priority: filters.priority }),
+      ...(filters?.createdById && { createdById: filters.createdById }),
+      ...(filters?.assignedToId && { assignedToId: filters.assignedToId }),
+    },
+    include: this.ticketIncludes(),
+    orderBy: { createdAt: 'desc' },
+  });
+}
 
   async findOne(id: number) {
     const ticket = await this.prisma.ticket.findUnique({
@@ -115,4 +119,6 @@ export class TicketsService {
       player: { select: { id: true, name: true, email: true } },
     };
   }
+
+  
 }

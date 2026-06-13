@@ -30,22 +30,28 @@ export class TicketsController {
     );
   }
 
-  @Get()
-  findAll(
-    @Query('status') status?: string,
-    @Query('department') department?: string,
-    @Query('priority') priority?: string,
-    @Query('createdById') createdById?: string,
-    @Query('assignedToId') assignedToId?: string,
-  ) {
-    return this.ticketsService.findAll({
+@Get()
+findAll(
+  @Request() req,
+  @Query('status') status?: string,
+  @Query('department') department?: string,
+  @Query('priority') priority?: string,
+  @Query('createdById') createdById?: string,
+  @Query('assignedToId') assignedToId?: string,
+) {
+  return this.ticketsService.findAll(
+    req.user.id,
+    req.user.role,
+    req.user.department ?? null,
+    {
       status,
       department,
       priority,
       createdById: createdById ? parseInt(createdById) : undefined,
       assignedToId: assignedToId ? parseInt(assignedToId) : undefined,
-    });
-  }
+    },
+  );
+}
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

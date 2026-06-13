@@ -5,16 +5,17 @@ import { PrismaService } from '../prisma.service';
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
-  async getUsers() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-  }
+async getUsers() {
+  return this.prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      department: true,
+      createdAt: true,
+    },
+  });
+}
 
   async getDashboardMetrics(userId: number) {
   const [
@@ -74,5 +75,13 @@ export class AdminService {
       count: t._count.id,
     })),
   };
+}
+
+async updateUserDepartment(id: number, department: string) {
+  return this.prisma.user.update({
+    where: { id },
+    data: { department: department.toUpperCase() },
+    select: { id: true, email: true, role: true, department: true },
+  });
 }
 }
