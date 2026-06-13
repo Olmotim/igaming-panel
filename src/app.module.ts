@@ -9,6 +9,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PlayersModule } from './players/players.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { AdminService } from './admin/admin.service';
 
 @Module({
   imports: [
@@ -21,6 +22,6 @@ import { TicketsModule } from './tickets/tickets.module';
     TicketsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService, PrismaService, AdminService],
 })
 export class AppModule {}
