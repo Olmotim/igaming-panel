@@ -112,13 +112,13 @@ async findAll(userId: number, userRole: string, userDepartment: string | null, f
     });
   }
 
-  private ticketIncludes() {
-    return {
-      createdBy: { select: { id: true, email: true } },
-      assignedTo: { select: { id: true, email: true } },
-      player: { select: { id: true, name: true, email: true } },
-    };
-  }
+private ticketIncludes() {
+  return {
+    createdBy: { select: { id: true, email: true } },
+    assignedTo: { select: { id: true, email: true } },
+    player: { select: { id: true, firstName: true, lastName: true, email: true } },
+  };
+}
 
   
 }
