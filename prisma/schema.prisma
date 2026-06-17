@@ -27,6 +27,8 @@ model User {
   ticketsCreated  Ticket[]        @relation("TicketCreatedBy")
   ticketsAssigned Ticket[]        @relation("TicketAssignedTo")
   ticketComments  TicketComment[]
+  bonusesGranted  PlayerBonus[]
+  kycReviews        PlayerKYC[]
 }
 
 model Workspace {
@@ -69,15 +71,58 @@ model Task {
 }
 
 model Player {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  status    String   @default("pending_verification")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    Int      @id @default(autoincrement())
+  
+  // Datos básicos
+  email                 String   @unique
+  firstName             String   @default("")
+  lastName              String   @default("")
+  phone                 String?
+  dateOfBirth           DateTime?
+  gender                String?
+  nationality           String?
+  country               String?
+  city                  String?
+  address               String?
+  language              String?  @default("es")
+  registrationChannel   String?  @default("web")
+  
+  // Estado de cuenta
+  status                String   @default("pending_verification")
+  lastLogin             DateTime?
+  verifiedAt            DateTime?
+  
+  // Balance
+  realBalance           Float    @default(0)
+  bonusBalance          Float    @default(0)
+  
+  // Estados independientes
+  canDeposit            Boolean  @default(true)
+  canWithdraw           Boolean  @default(true)
+  canBet                Boolean  @default(true)
+  canReceiveBonus       Boolean  @default(true)
+  canLogin              Boolean  @default(true)
+  
+  // Tags
+  tags                  String[] @default([])
+  
+  // AML/Risk
+  riskLevel             String   @default("LOW")
+  isPEP                 Boolean  @default(false)
+  sofVerified           Boolean  @default(false)
+  riskNotes             String?
 
-  notes    PlayerNote[]
-  tickets  Ticket[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  notes                 PlayerNote[]
+  tickets               Ticket[]
+  kyc                   PlayerKYC?
+  payments              PlayerPayment[]
+  bonuses               PlayerBonus[]
+  rgLimits              PlayerRGLimit[]
+  loginHistory          PlayerLoginHistory[]
+
 }
 
 model PlayerNote {
@@ -90,6 +135,121 @@ model PlayerNote {
 
   player    Player   @relation(fields: [playerId], references: [id])
   author    User     @relation(fields: [authorId], references: [id])
+}
+
+model PlayerKYC {
+  id                    Int      @id @default(autoincrement())
+  
+  // Nivel de verificación
+  kycLevel              String   @default("NONE")
+  
+  // Documento de identidad
+  idDocType             String?
+  idDocNumber           String?
+  idDocExpiry           DateTime?
+  idDocIssuingCountry   String?
+  idDocStatus           String   @default("NOT_REQUESTED")
+  idDocUrl              String?
+  
+  // Proof of Address
+  poaDocType            String?
+  poaDocStatus          String   @default("NOT_REQUESTED")
+  poaDocUrl             String?
+  
+  // Source of Funds
+  sofDocStatus          String   @default("NOT_REQUESTED")
+  sofDocUrl             String?
+  sofDescription        String?
+  
+  // PEP
+  pepStatus             String   @default("NOT_PEP")
+  pepNotes              String?
+  
+  // Auditoría
+  reviewedAt            DateTime?
+  reviewedById          Int?
+  reviewedBy            User?    @relation(fields: [reviewedById], references: [id])
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  playerId              Int      @unique
+  player                Player   @relation(fields: [playerId], references: [id])
+}
+
+model PlayerPayment {
+  id              Int      @id @default(autoincrement())
+  type            String   // DEPOSIT, WITHDRAWAL
+  amount          Float
+  currency        String   @default("EUR")
+  status          String   @default("PENDING")
+  paymentMethod   String?
+  accountNumber   String?
+  reference       String?
+  notes           String?
+  processedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  playerId        Int
+  player          Player   @relation(fields: [playerId], references: [id])
+}
+
+model PlayerBonus {
+  id                  Int      @id @default(autoincrement())
+  type                String   // DEPOSIT, FREE_SPINS, CASHBACK, NO_DEPOSIT
+  description         String?
+  amount              Float
+  wagering            Float    @default(0)
+  wageringCompleted   Float    @default(0)
+  maxWinAmount        Float?
+  status              String   @default("ACTIVE")
+  expiresAt           DateTime?
+  claimedAt           DateTime?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  playerId            Int
+  grantedById         Int
+  player              Player   @relation(fields: [playerId], references: [id])
+  grantedBy           User     @relation(fields: [grantedById], references: [id])
+}
+
+model PlayerRGLimit {
+  id              Int      @id @default(autoincrement())
+  type            String   // DEPOSIT_LIMIT, SESSION_LIMIT, COOL_OFF, SELF_EXCLUSION, REALITY_CHECK
+  period          String?  // DAILY, WEEKLY, MONTHLY
+  amount          Float?
+  duration        Int?
+  status          String   @default("ACTIVE")
+  requestedAt     DateTime?
+  startDate       DateTime @default(now())
+  endDate         DateTime?
+  coolingOffUntil DateTime?
+  excludedUntil   DateTime?
+  therapyFlag     Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  playerId        Int
+  player          Player   @relation(fields: [playerId], references: [id])
+}
+
+model PlayerLoginHistory {
+  id          Int      @id @default(autoincrement())
+  ip          String?
+  device      String?
+  browser     String?
+  country     String?
+  status      String   @default("SUCCESS")
+  
+  createdAt   DateTime @default(now())
+
+  playerId    Int
+  player      Player   @relation(fields: [playerId], references: [id])
 }
 
 model Ticket {

@@ -40,7 +40,7 @@ async getUsers() {
       where: { assignedToId: userId, status: { notIn: ['RESOLVED', 'CLOSED'] } },
       include: {
         createdBy: { select: { id: true, email: true } },
-        player: { select: { id: true, name: true } },
+        player: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       take: 5,
@@ -50,7 +50,7 @@ async getUsers() {
       take: 8,
       include: {
         createdBy: { select: { id: true, email: true } },
-        player: { select: { id: true, name: true } },
+        player: { select: { id: true, firstName: true, lastName: true } },
       },
     }),
     this.prisma.ticket.groupBy({
