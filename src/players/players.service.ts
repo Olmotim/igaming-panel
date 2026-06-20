@@ -14,29 +14,35 @@ export class PlayersService {
     });
   }
 
-  async findAll(search?: string) {
-    return this.prisma.player.findMany({
-      where: search
-        ? {
-            OR: [
-              { email: { contains: search, mode: 'insensitive' } },
-              { firstName: { contains: search, mode: 'insensitive' } },
-              { lastName: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        status: true,
-        createdAt: true,
-        _count: { select: { notes: true } },
+ async findAll(search?: string) {
+  return this.prisma.player.findMany({
+    where: search
+      ? {
+          OR: [
+            { email: { contains: search, mode: 'insensitive' } },
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : undefined,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      status: true,
+      riskLevel: true,
+      createdAt: true,
+      _count: { select: { notes: true } },
+      kyc: { select: { idDocStatus: true, poaDocStatus: true, sofDocStatus: true } },
+      rgLimits: {
+        where: { type: 'SELF_EXCLUSION', status: 'ACTIVE' },
+        select: { id: true },
       },
-    });
-  }
+    },
+  });
+}
 
   async findOne(id: number) {
     const player = await this.prisma.player.findUnique({
