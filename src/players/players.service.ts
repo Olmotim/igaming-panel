@@ -99,15 +99,43 @@ export class PlayersService {
     });
   }
 
-  async updateStatus(id: number, status: string) {
-    const player = await this.prisma.player.findUnique({ where: { id } });
-    if (!player) throw new NotFoundException('Jugador no encontrado');
+async updateStatus(id: number, status: string) {
+  const player = await this.prisma.player.findUnique({ where: { id } });
+  if (!player) throw new NotFoundException('Jugador no encontrado');
 
-    return this.prisma.player.update({
-      where: { id },
-      data: { status },
-    });
+  let restrictions: Record<string, boolean> = {};
+
+  if (status === 'active') {
+    restrictions = {
+      canDeposit: true,
+      canWithdraw: true,
+      canBet: true,
+      canReceiveBonus: true,
+      canLogin: true,
+    };
+  } else if (status === 'pending_verification') {
+    restrictions = {
+      canDeposit: true,
+      canWithdraw: false,
+      canBet: true,
+      canReceiveBonus: true,
+      canLogin: true,
+    };
+  } else if (status === 'suspended') {
+    restrictions = {
+      canDeposit: false,
+      canWithdraw: false,
+      canBet: false,
+      canReceiveBonus: false,
+      canLogin: false,
+    };
   }
+
+  return this.prisma.player.update({
+    where: { id },
+    data: { status, ...restrictions },
+  });
+}
 
   async updateBalances(id: number, realBalance?: number, bonusBalance?: number) {
     const player = await this.prisma.player.findUnique({ where: { id } });
