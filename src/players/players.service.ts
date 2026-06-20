@@ -229,18 +229,39 @@ export class PlayersService {
     });
   }
 
-  async updatePaymentStatus(paymentId: number, status: string) {
-    const payment = await this.prisma.playerPayment.findUnique({ where: { id: paymentId } });
-    if (!payment) throw new NotFoundException('Pago no encontrado');
+async updatePaymentStatus(paymentId: number, status: string) {
+  const payment = await this.prisma.playerPayment.findUnique({ where: { id: paymentId } });
+  if (!payment) throw new NotFoundException('Pago no encontrado');
 
-    return this.prisma.playerPayment.update({
-      where: { id: paymentId },
-      data: {
-        status,
-        processedAt: status !== 'PENDING' ? new Date() : payment.processedAt,
-      },
+  const wasApproved = payment.status === 'APPROVED';
+  const willBeApproved = status === 'APPROVED';
+
+  const updated = await this.prisma.playerPayment.update({
+    where: { id: paymentId },
+    data: {
+      status,
+      processedAt: status !== 'PENDING' ? new Date() : payment.processedAt,
+    },
+  });
+
+  // Actualizar balance solo si el estado de aprobación cambia
+  if (!wasApproved && willBeApproved) {
+    const delta = payment.type === 'DEPOSIT' ? payment.amount : -payment.amount;
+    await this.prisma.player.update({
+      where: { id: payment.playerId },
+      data: { realBalance: { increment: delta } },
+    });
+  } else if (wasApproved && !willBeApproved) {
+    // Si se revierte una aprobación, deshacer el efecto en balance
+    const delta = payment.type === 'DEPOSIT' ? -payment.amount : payment.amount;
+    await this.prisma.player.update({
+      where: { id: payment.playerId },
+      data: { realBalance: { increment: delta } },
     });
   }
+
+  return updated;
+}
 
   // ---- Bonuses ----
 
@@ -252,35 +273,55 @@ export class PlayersService {
     });
   }
 
-  async addBonus(playerId: number, data: {
-    type: string;
-    description?: string;
-    amount: number;
-    wagering?: number;
-    maxWinAmount?: number;
-    expiresAt?: Date;
-  }, grantedById: number) {
-    const player = await this.prisma.player.findUnique({ where: { id: playerId } });
-    if (!player) throw new NotFoundException('Jugador no encontrado');
+async addBonus(playerId: number, data: {
+  type: string;
+  description?: string;
+  amount: number;
+  wagering?: number;
+  maxWinAmount?: number;
+  expiresAt?: Date;
+}, grantedById: number) {
+  const player = await this.prisma.player.findUnique({ where: { id: playerId } });
+  if (!player) throw new NotFoundException('Jugador no encontrado');
 
-    return this.prisma.playerBonus.create({
-      data: { ...data, playerId, grantedById },
-      include: { grantedBy: { select: { id: true, email: true } } },
+  const bonus = await this.prisma.playerBonus.create({
+    data: { ...data, playerId, grantedById },
+    include: { grantedBy: { select: { id: true, email: true } } },
+  });
+
+  await this.prisma.player.update({
+    where: { id: playerId },
+    data: { bonusBalance: { increment: data.amount } },
+  });
+
+  return bonus;
+}
+
+async updateBonusStatus(bonusId: number, status: string) {
+  const bonus = await this.prisma.playerBonus.findUnique({ where: { id: bonusId } });
+  if (!bonus) throw new NotFoundException('Bono no encontrado');
+
+  const wasActive = bonus.status === 'ACTIVE';
+  const willBeInactive = status === 'CANCELLED' || status === 'EXPIRED';
+
+  const updated = await this.prisma.playerBonus.update({
+    where: { id: bonusId },
+    data: {
+      status,
+      claimedAt: status === 'CLAIMED' ? new Date() : bonus.claimedAt,
+    },
+  });
+
+  // Si el bono deja de estar activo (cancelado/expirado), se quita del bonusBalance
+  if (wasActive && willBeInactive) {
+    await this.prisma.player.update({
+      where: { id: bonus.playerId },
+      data: { bonusBalance: { decrement: bonus.amount } },
     });
   }
 
-  async updateBonusStatus(bonusId: number, status: string) {
-    const bonus = await this.prisma.playerBonus.findUnique({ where: { id: bonusId } });
-    if (!bonus) throw new NotFoundException('Bono no encontrado');
-
-    return this.prisma.playerBonus.update({
-      where: { id: bonusId },
-      data: {
-        status,
-        claimedAt: status === 'CLAIMED' ? new Date() : bonus.claimedAt,
-      },
-    });
-  }
+  return updated;
+}
 
   // ---- Responsible Gaming ----
 
