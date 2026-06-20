@@ -10,17 +10,19 @@ import { TasksModule } from './tasks/tasks.module';
 import { PlayersModule } from './players/players.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { AdminService } from './admin/admin.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    AuthModule,
-    AdminModule,
-    WorkspacesModule,
-    TasksModule,
-    PlayersModule,
-    TicketsModule,
-  ],
+imports: [
+  ConfigModule.forRoot({ isGlobal: true }),
+  ScheduleModule.forRoot(),
+  AuthModule,
+  AdminModule,
+  WorkspacesModule,
+  TasksModule,
+  PlayersModule,
+  TicketsModule,
+],
   controllers: [AppController],
   providers: [AppService, PrismaService, AdminService],
 })

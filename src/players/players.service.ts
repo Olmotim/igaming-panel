@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
+
 
 @Injectable()
 export class PlayersService {
@@ -127,7 +129,7 @@ async updateStatus(id: number, status: string) {
       canReceiveBonus: true,
       canLogin: true,
     };
-  } else if (status === 'suspended') {
+  } else if (status === 'suspended' || status === 'self_excluded') {
     restrictions = {
       canDeposit: false,
       canWithdraw: false,
@@ -366,23 +368,29 @@ async updateBonusStatus(bonusId: number, status: string) {
     });
   }
 
-  async addRGLimit(playerId: number, data: {
-    type: string;
-    period?: string;
-    amount?: number;
-    duration?: number;
-    endDate?: Date;
-    coolingOffUntil?: Date;
-    excludedUntil?: Date;
-    therapyFlag?: boolean;
-  }) {
-    const player = await this.prisma.player.findUnique({ where: { id: playerId } });
-    if (!player) throw new NotFoundException('Jugador no encontrado');
+async addRGLimit(playerId: number, data: {
+  type: string;
+  period?: string;
+  amount?: number;
+  duration?: number;
+  endDate?: Date;
+  coolingOffUntil?: Date;
+  excludedUntil?: Date;
+  therapyFlag?: boolean;
+}) {
+  const player = await this.prisma.player.findUnique({ where: { id: playerId } });
+  if (!player) throw new NotFoundException('Jugador no encontrado');
 
-    return this.prisma.playerRGLimit.create({
-      data: { ...data, playerId, requestedAt: new Date() },
-    });
+  const limit = await this.prisma.playerRGLimit.create({
+    data: { ...data, playerId, requestedAt: new Date() },
+  });
+
+  if (data.type === 'SELF_EXCLUSION') {
+    await this.updateStatus(playerId, 'self_excluded');
   }
+
+  return limit;
+}
 
   async updateRGLimitStatus(limitId: number, status: string) {
     const limit = await this.prisma.playerRGLimit.findUnique({ where: { id: limitId } });
@@ -394,6 +402,31 @@ async updateBonusStatus(bonusId: number, status: string) {
     });
   }
 
+@Cron(CronExpression.EVERY_HOUR)
+async checkExpiredExclusions() {
+  const now = new Date();
+
+  const expired = await this.prisma.playerRGLimit.findMany({
+    where: {
+      type: 'SELF_EXCLUSION',
+      status: 'ACTIVE',
+      excludedUntil: { lte: now },
+    },
+  });
+
+  for (const limit of expired) {
+    await this.prisma.playerRGLimit.update({
+      where: { id: limit.id },
+      data: { status: 'EXPIRED' },
+    });
+
+    await this.updateStatus(limit.playerId, 'active');
+  }
+
+  return { reactivated: expired.length };
+}
+  
+
   // ---- Login History ----
 
   async getLoginHistory(playerId: number) {
@@ -403,4 +436,6 @@ async updateBonusStatus(bonusId: number, status: string) {
       take: 20,
     });
   }
+
+  
 }
