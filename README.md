@@ -4,6 +4,19 @@ REST API for an iGaming backoffice panel, built so support, KYC, and admin teams
 
 Frontend repository: [igaming-panel-front](https://github.com/Olmotim/igaming-panel-front)
 
+## Live demo
+
+This API is deployed on Railway and powers the live frontend demo:
+
+🔗 **[igaming-panel-front.vercel.app/login](https://igaming-panel-front.vercel.app/login)**
+
+Demo credentials (admin role, fictitious data only):
+
+```
+email:    demo@igamingpanel.com
+password: Demo1234!
+```
+
 ## Stack
 
 - **NestJS** + TypeScript
@@ -57,6 +70,16 @@ npm run start:dev
 ```
 
 The API will be available at `http://localhost:3000`.
+
+### Seeding demo data (optional)
+
+To populate the database with a demo admin user and fictitious players, tickets, and a workspace:
+
+```bash
+npm run seed
+```
+
+This creates the same demo account used in the live demo above. Safe to run multiple times.
 
 ## Deployment
 
