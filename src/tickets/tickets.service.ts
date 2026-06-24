@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Department, Role, TicketPriority, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { assertMinRole, ActingUser } from '../auth/authorization.helper';
 
 @Injectable()
 export class TicketsService {
@@ -8,8 +10,8 @@ export class TicketsService {
   async create(
     title: string,
     description: string,
-    department: string,
-    priority: string,
+    department: Department,
+    priority: TicketPriority,
     createdById: number,
     playerId?: number,
     assignedToId?: number,
@@ -18,7 +20,7 @@ export class TicketsService {
       data: {
         title,
         description,
-        department: department.toUpperCase(),
+        department,
         priority,
         createdById,
         playerId,
@@ -28,16 +30,16 @@ export class TicketsService {
     });
   }
 
-async findAll(userId: number, userRole: string, userDepartment: string | null, filters?: {
-  status?: string;
-  department?: string;
-  priority?: string;
+async findAll(userId: number, userRole: Role, userDepartment: Department | null, filters?: {
+  status?: TicketStatus;
+  department?: Department;
+  priority?: TicketPriority;
   createdById?: number;
   assignedToId?: number;
 }) {
-  const departmentFilter = userRole === 'admin' 
-    ? filters?.department 
-    : userDepartment?.toUpperCase() ?? undefined;
+  const departmentFilter = userRole === Role.ADMIN
+    ? filters?.department
+    : userDepartment ?? undefined;
 
   return this.prisma.ticket.findMany({
     where: {
@@ -52,7 +54,7 @@ async findAll(userId: number, userRole: string, userDepartment: string | null, f
   });
 }
 
-  async findOne(id: number) {
+  async findOne(id: number, user: ActingUser) {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id },
       include: {
@@ -67,14 +69,16 @@ async findAll(userId: number, userRole: string, userDepartment: string | null, f
     });
 
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    this.assertCanAccessTicket(ticket, user);
     return ticket;
   }
 
-  async updateStatus(id: number, status: string, userId: number) {
+  async updateStatus(id: number, status: TicketStatus, user: ActingUser) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    this.assertCanAccessTicket(ticket, user);
 
-    const resolvedAt = status === 'RESOLVED' ? new Date() : ticket.resolvedAt;
+    const resolvedAt = status === TicketStatus.RESOLVED ? new Date() : ticket.resolvedAt;
 
     return this.prisma.ticket.update({
       where: { id },
@@ -86,12 +90,18 @@ async findAll(userId: number, userRole: string, userDepartment: string | null, f
   async update(id: number, data: {
     title?: string;
     description?: string;
-    priority?: string;
-    department?: string;
+    priority?: TicketPriority;
+    department?: Department;
     assignedToId?: number;
-  }) {
+  }, user: ActingUser) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    this.assertCanAccessTicket(ticket, user);
+
+    // Reasignar a otro departamento o agente cruza el ámbito del ticket: requiere SUPERVISOR+
+    if (data.department !== undefined || data.assignedToId !== undefined) {
+      assertMinRole(user.role, Role.SUPERVISOR);
+    }
 
     return this.prisma.ticket.update({
       where: { id },
@@ -100,12 +110,13 @@ async findAll(userId: number, userRole: string, userDepartment: string | null, f
     });
   }
 
-  async addComment(ticketId: number, content: string, authorId: number) {
+  async addComment(ticketId: number, content: string, user: ActingUser) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    this.assertCanAccessTicket(ticket, user);
 
     return this.prisma.ticketComment.create({
-      data: { content, ticketId, authorId },
+      data: { content, ticketId, authorId: user.id },
       include: {
         author: { select: { id: true, email: true } },
       },
@@ -120,5 +131,13 @@ private ticketIncludes() {
   };
 }
 
-  
+private assertCanAccessTicket(
+  ticket: { department: Department; createdById: number; assignedToId: number | null },
+  user: ActingUser,
+) {
+  if (user.role === Role.ADMIN) return;
+  if (ticket.createdById === user.id || ticket.assignedToId === user.id) return;
+  if (user.department === ticket.department) return;
+  throw new ForbiddenException('No tienes acceso a este ticket');
+}
 }

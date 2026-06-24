@@ -16,7 +16,7 @@
  * Safe to run multiple times — uses upsert where possible.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 
@@ -38,8 +38,8 @@ async function main() {
     create: {
       email: DEMO_EMAIL,
       password: hashedPassword,
-      role: 'admin',
-      department: 'Operations',
+      role: 'ADMIN',
+      department: 'OPERATIONS',
     },
   });
 
@@ -95,14 +95,14 @@ async function main() {
   }
 
   // 3. Fictitious players
-  const playersData = [
+  const playersData: Prisma.PlayerCreateInput[] = [
     {
       email: 'maria.fernandez@example.com',
       firstName: 'Maria',
       lastName: 'Fernandez',
       country: 'ES',
       city: 'Valencia',
-      status: 'active',
+      status: 'ACTIVE',
       realBalance: 245.5,
       bonusBalance: 20,
       riskLevel: 'LOW',
@@ -113,7 +113,7 @@ async function main() {
       lastName: 'Doe',
       country: 'MT',
       city: 'Sliema',
-      status: 'active',
+      status: 'ACTIVE',
       realBalance: 1320.0,
       bonusBalance: 0,
       riskLevel: 'MEDIUM',
@@ -124,7 +124,7 @@ async function main() {
       lastName: 'Rossi',
       country: 'IT',
       city: 'Milan',
-      status: 'pending_verification',
+      status: 'PENDING_VERIFICATION',
       realBalance: 0,
       bonusBalance: 50,
       riskLevel: 'LOW',
@@ -135,7 +135,7 @@ async function main() {
       lastName: 'Kowalski',
       country: 'PL',
       city: 'Warsaw',
-      status: 'suspended',
+      status: 'SUSPENDED',
       realBalance: 80.25,
       bonusBalance: 0,
       riskLevel: 'HIGH',
@@ -153,7 +153,7 @@ async function main() {
         ...p,
         language: 'en',
         registrationChannel: 'web',
-        verifiedAt: p.status === 'active' ? new Date() : null,
+        verifiedAt: p.status === 'ACTIVE' ? new Date() : null,
         lastLogin: new Date(),
       },
     });
@@ -174,7 +174,7 @@ async function main() {
       idDocType: 'PASSPORT',
       idDocNumber: 'DEMO-0001',
       idDocStatus: 'APPROVED',
-      poaDocStatus: 'APPROVED',
+      poaDocStatus: 'VERIFIED',
       sofDocStatus: 'NOT_REQUESTED',
       pepStatus: 'NOT_PEP',
       reviewedAt: new Date(),
@@ -203,7 +203,7 @@ async function main() {
           playerId: maria.id,
           type: 'DEPOSIT',
           amount: 100,
-          status: 'COMPLETED',
+          status: 'APPROVED',
           paymentMethod: 'Credit Card',
           processedAt: new Date(),
         },
@@ -267,7 +267,7 @@ async function main() {
         description: 'Player reports withdrawal request from 3 days ago still pending.',
         priority: 'HIGH',
         status: 'OPEN',
-        department: 'Payments',
+        department: 'PAYMENTS',
         createdById: demoUser.id,
         assignedToId: demoUser.id,
         playerId: john.id,
@@ -301,7 +301,7 @@ async function main() {
         description: 'Player disputes the suspension and is requesting a review.',
         priority: 'HIGH',
         status: 'OPEN',
-        department: 'Risk',
+        department: 'RISK',
         createdById: demoUser.id,
         playerId: anna.id,
       },

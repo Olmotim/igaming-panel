@@ -1,6 +1,6 @@
 # iGaming Panel — Backend
 
-REST API for an iGaming backoffice panel, built so support, KYC, and admin teams can manage players, support tickets, and internal workspaces. Built with NestJS, Prisma, and PostgreSQL.
+REST API for an iGaming backoffice panel, built so support, KYC, and admin teams can manage players and support tickets. Built with NestJS, Prisma, and PostgreSQL.
 
 Frontend repository: [igaming-panel-front](https://github.com/Olmotim/igaming-panel-front)
 
@@ -36,8 +36,11 @@ password: Demo1234!
 - **Responsible Gaming**: gaming limits and their status
 - **Login history** per player
 - **Support tickets**: creation, comments, and status updates
-- **Workspaces**: teams with members and associated tasks
 - **Admin**: user and department management
+
+## Inactive modules
+
+`workspaces` and `tasks` exist in the codebase but are **not part of the active backoffice flow**. They're initial scaffolding for a generic Kanban board, kept in the repo in case it gets reused later, but they're not wired into the iGaming domain logic (players, tickets, KYC, etc.) and the frontend doesn't link to them anywhere. Don't assume they need finishing — they're intentionally left as-is.
 
 ## Tests
 

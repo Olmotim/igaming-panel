@@ -11,15 +11,129 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  AGENT
+  SUPERVISOR
+  ADMIN
+}
+
+enum Department {
+  KYC
+  PAYMENTS
+  RISK
+  SUPPORT
+  OPERATIONS
+}
+
+enum PlayerStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  SELF_EXCLUDED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum KycLevel {
+  NONE
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
+enum IdDocStatus {
+  NOT_REQUESTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProofDocStatus {
+  NOT_REQUESTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PepStatus {
+  NOT_PEP
+  PEP
+  UNDER_REVIEW
+}
+
+enum PaymentType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BonusType {
+  DEPOSIT
+  FREE_SPINS
+  CASHBACK
+  NO_DEPOSIT
+}
+
+enum BonusStatus {
+  ACTIVE
+  CLAIMED
+  CANCELLED
+  EXPIRED
+}
+
+enum RGLimitType {
+  DEPOSIT_LIMIT
+  SESSION_LIMIT
+  COOL_OFF
+  SELF_EXCLUSION
+  REALITY_CHECK
+}
+
+enum RGLimitPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum RGLimitStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_INFO
+  RESOLVED
+  CLOSED
+}
+
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
   password     String
-  role         String   @default("user")
-  department   String?
+  role         Role       @default(AGENT)
+  department   Department?
   refreshToken String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   workspaces      WorkspaceMember[]
   tasks           Task[]
@@ -72,7 +186,7 @@ model Task {
 
 model Player {
   id                    Int      @id @default(autoincrement())
-  
+
   // Datos básicos
   email                 String   @unique
   firstName             String   @default("")
@@ -86,28 +200,28 @@ model Player {
   address               String?
   language              String?  @default("es")
   registrationChannel   String?  @default("web")
-  
+
   // Estado de cuenta
-  status                String   @default("pending_verification")
+  status                PlayerStatus @default(PENDING_VERIFICATION)
   lastLogin             DateTime?
   verifiedAt            DateTime?
-  
+
   // Balance
   realBalance           Float    @default(0)
   bonusBalance          Float    @default(0)
-  
+
   // Estados independientes
   canDeposit            Boolean  @default(true)
   canWithdraw           Boolean  @default(true)
   canBet                Boolean  @default(true)
   canReceiveBonus       Boolean  @default(true)
   canLogin              Boolean  @default(true)
-  
+
   // Tags
   tags                  String[] @default([])
-  
+
   // AML/Risk
-  riskLevel             String   @default("LOW")
+  riskLevel             RiskLevel @default(LOW)
   isPEP                 Boolean  @default(false)
   sofVerified           Boolean  @default(false)
   riskNotes             String?
@@ -133,109 +247,121 @@ model PlayerNote {
   playerId  Int
   authorId  Int
 
-  player    Player   @relation(fields: [playerId], references: [id])
-  author    User     @relation(fields: [authorId], references: [id])
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([playerId])
+  @@index([authorId])
 }
 
 model PlayerKYC {
   id                    Int      @id @default(autoincrement())
-  
+
   // Nivel de verificación
-  kycLevel              String   @default("NONE")
-  
+  kycLevel              KycLevel @default(NONE)
+
   // Documento de identidad
   idDocType             String?
   idDocNumber           String?
   idDocExpiry           DateTime?
   idDocIssuingCountry   String?
-  idDocStatus           String   @default("NOT_REQUESTED")
+  idDocStatus           IdDocStatus @default(NOT_REQUESTED)
   idDocUrl              String?
-  
+
   // Proof of Address
   poaDocType            String?
-  poaDocStatus          String   @default("NOT_REQUESTED")
+  poaDocStatus          ProofDocStatus @default(NOT_REQUESTED)
   poaDocUrl             String?
-  
+
   // Source of Funds
-  sofDocStatus          String   @default("NOT_REQUESTED")
+  sofDocStatus          ProofDocStatus @default(NOT_REQUESTED)
   sofDocUrl             String?
   sofDescription        String?
-  
+
   // PEP
-  pepStatus             String   @default("NOT_PEP")
+  pepStatus             PepStatus @default(NOT_PEP)
   pepNotes              String?
-  
+
   // Auditoría
   reviewedAt            DateTime?
   reviewedById          Int?
-  reviewedBy            User?    @relation(fields: [reviewedById], references: [id])
+  reviewedBy            User?    @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   playerId              Int      @unique
-  player                Player   @relation(fields: [playerId], references: [id])
+  player                Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@index([reviewedById])
 }
 
 model PlayerPayment {
   id              Int      @id @default(autoincrement())
-  type            String   // DEPOSIT, WITHDRAWAL
+  type            PaymentType
   amount          Float
   currency        String   @default("EUR")
-  status          String   @default("PENDING")
+  status          PaymentStatus @default(PENDING)
   paymentMethod   String?
   accountNumber   String?
   reference       String?
   notes           String?
   processedAt     DateTime?
-  
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   playerId        Int
-  player          Player   @relation(fields: [playerId], references: [id])
+  player          Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@index([playerId])
 }
 
 model PlayerBonus {
   id                  Int      @id @default(autoincrement())
-  type                String   // DEPOSIT, FREE_SPINS, CASHBACK, NO_DEPOSIT
+  type                BonusType
   description         String?
   amount              Float
   wagering            Float    @default(0)
   wageringCompleted   Float    @default(0)
   maxWinAmount        Float?
-  status              String   @default("ACTIVE")
+  status              BonusStatus @default(ACTIVE)
   expiresAt           DateTime?
   claimedAt           DateTime?
-  
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   playerId            Int
   grantedById         Int
-  player              Player   @relation(fields: [playerId], references: [id])
-  grantedBy           User     @relation(fields: [grantedById], references: [id])
+  player              Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  grantedBy           User     @relation(fields: [grantedById], references: [id], onDelete: Restrict)
+
+  @@index([playerId])
+  @@index([grantedById])
 }
 
 model PlayerRGLimit {
   id              Int      @id @default(autoincrement())
-  type            String   // DEPOSIT_LIMIT, SESSION_LIMIT, COOL_OFF, SELF_EXCLUSION, REALITY_CHECK
-  period          String?  // DAILY, WEEKLY, MONTHLY
+  type            RGLimitType
+  period          RGLimitPeriod?
   amount          Float?
   duration        Int?
-  status          String   @default("ACTIVE")
+  status          RGLimitStatus @default(ACTIVE)
   requestedAt     DateTime?
   startDate       DateTime @default(now())
   endDate         DateTime?
   coolingOffUntil DateTime?
   excludedUntil   DateTime?
   therapyFlag     Boolean  @default(false)
-  
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   playerId        Int
-  player          Player   @relation(fields: [playerId], references: [id])
+  player          Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@index([playerId])
 }
 
 model PlayerLoginHistory {
@@ -245,32 +371,38 @@ model PlayerLoginHistory {
   browser     String?
   country     String?
   status      String   @default("SUCCESS")
-  
+
   createdAt   DateTime @default(now())
 
   playerId    Int
-  player      Player   @relation(fields: [playerId], references: [id])
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@index([playerId])
 }
 
 model Ticket {
-  id           Int       @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   title        String
   description  String
-  priority     String    @default("MEDIUM")
-  status       String    @default("OPEN")
-  department   String
+  priority     TicketPriority @default(MEDIUM)
+  status       TicketStatus   @default(OPEN)
+  department   Department
   resolvedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   createdById  Int
   assignedToId Int?
   playerId     Int?
 
-  createdBy    User      @relation("TicketCreatedBy", fields: [createdById], references: [id])
-  assignedTo   User?     @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
-  player       Player?   @relation(fields: [playerId], references: [id])
+  createdBy    User      @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo   User?     @relation("TicketAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  player       Player?   @relation(fields: [playerId], references: [id], onDelete: SetNull)
   comments     TicketComment[]
+
+  @@index([playerId])
+  @@index([assignedToId])
+  @@index([createdById])
 }
 
 model TicketComment {
@@ -281,6 +413,9 @@ model TicketComment {
   ticketId  Int
   authorId  Int
 
-  ticket    Ticket   @relation(fields: [ticketId], references: [id])
-  author    User     @relation(fields: [authorId], references: [id])
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId])
+  @@index([authorId])
 }

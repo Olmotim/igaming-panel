@@ -32,6 +32,18 @@ describe('JwtStrategy', () => {
     expect(strategy).toBeDefined();
   });
 
+  describe('constructor', () => {
+    it('debería lanzar un error explícito si JWT_SECRET no está definida, en vez de usar un secreto vacío', () => {
+      // Arrange
+      const configServiceWithoutSecret = { get: jest.fn().mockReturnValue(undefined) };
+
+      // Act + Assert
+      expect(() => new JwtStrategy(configServiceWithoutSecret as any, prisma as any)).toThrow(
+        'JWT_SECRET no está definida',
+      );
+    });
+  });
+
   describe('validate', () => {
     it('debería devolver los datos del usuario si existe en la base de datos', async () => {
       // Arrange

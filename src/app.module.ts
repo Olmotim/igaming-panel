@@ -9,7 +9,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PlayersModule } from './players/players.module';
 import { TicketsModule } from './tickets/tickets.module';
-import { AdminService } from './admin/admin.service';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -22,8 +22,9 @@ imports: [
   TasksModule,
   PlayersModule,
   TicketsModule,
+  DashboardModule,
 ],
   controllers: [AppController],
-  providers: [AppService, PrismaService, AdminService],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

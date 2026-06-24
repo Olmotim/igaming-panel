@@ -1,15 +1,44 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Request, ParseIntPipe } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { PlayersService } from './players.service';
+import { PlayersKycService } from './players-kyc.service';
+import { PlayersPaymentsService } from './players-payments.service';
+import { PlayersBonusesService } from './players-bonuses.service';
+import { PlayersRgService } from './players-rg.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { CreatePlayerDto } from './dto/create-player.dto';
+import { UpdatePlayerDto } from './dto/update-player.dto';
+import { UpdatePlayerStatusDto } from './dto/update-player-status.dto';
+import { UpdateBalancesDto } from './dto/update-balances.dto';
+import { UpdateRestrictionsDto } from './dto/update-restrictions.dto';
+import { UpdateRiskDto } from './dto/update-risk.dto';
+import { AddNoteDto } from './dto/add-note.dto';
+import { UpsertKycDto } from './dto/upsert-kyc.dto';
+import { AddPaymentDto } from './dto/add-payment.dto';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { AddBonusDto } from './dto/add-bonus.dto';
+import { UpdateBonusStatusDto } from './dto/update-bonus-status.dto';
+import { AddRgLimitDto } from './dto/add-rg-limit.dto';
+import { UpdateRgLimitStatusDto } from './dto/update-rg-limit-status.dto';
 
 @Controller('players')
 @UseGuards(JwtAuthGuard)
 export class PlayersController {
-  constructor(private readonly playersService: PlayersService) {}
+  constructor(
+    private readonly playersService: PlayersService,
+    private readonly kycService: PlayersKycService,
+    private readonly paymentsService: PlayersPaymentsService,
+    private readonly bonusesService: PlayersBonusesService,
+    private readonly rgService: PlayersRgService,
+  ) {}
+
+  // ---- Account ----
 
   @Post()
-  create(@Body() body: { email: string; firstName: string; lastName: string }) {
-    return this.playersService.create(body.email, body.firstName, body.lastName);
+  create(@Body() dto: CreatePlayerDto) {
+    return this.playersService.create(dto.email, dto.firstName, dto.lastName);
   }
 
   @Get()
@@ -23,230 +52,125 @@ export class PlayersController {
   }
 
   @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      firstName?: string;
-      lastName?: string;
-      phone?: string;
-      dateOfBirth?: string;
-      gender?: string;
-      nationality?: string;
-      country?: string;
-      city?: string;
-      address?: string;
-      language?: string;
-      tags?: string[];
-    },
-  ) {
-    return this.playersService.update(id, {
-      ...body,
-      dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,
-    });
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePlayerDto) {
+    return this.playersService.update(id, dto);
   }
 
   @Put(':id/status')
-  updateStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: { status: string },
-  ) {
-    return this.playersService.updateStatus(id, body.status);
+  updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePlayerStatusDto, @Request() req) {
+    return this.playersService.updateStatus(id, dto.status, req.user);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   @Put(':id/balances')
-  updateBalances(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: { realBalance?: number; bonusBalance?: number },
-  ) {
-    return this.playersService.updateBalances(id, body.realBalance, body.bonusBalance);
+  updateBalances(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBalancesDto) {
+    return this.playersService.updateBalances(id, dto.realBalance, dto.bonusBalance);
   }
 
   @Put(':id/restrictions')
-  updateRestrictions(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      canDeposit?: boolean;
-      canWithdraw?: boolean;
-      canBet?: boolean;
-      canReceiveBonus?: boolean;
-      canLogin?: boolean;
-    },
-  ) {
-    return this.playersService.updateRestrictions(id, body);
+  updateRestrictions(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRestrictionsDto) {
+    return this.playersService.updateRestrictions(id, dto);
   }
 
   @Put(':id/risk')
-  updateRisk(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      riskLevel?: string;
-      isPEP?: boolean;
-      sofVerified?: boolean;
-      riskNotes?: string;
-    },
-  ) {
-    return this.playersService.updateRisk(id, body);
+  updateRisk(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRiskDto, @Request() req) {
+    return this.playersService.updateRisk(id, dto, req.user);
   }
 
   @Post(':id/notes')
   addNote(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { content: string },
+    @Body() dto: AddNoteDto,
     @Request() req,
   ) {
-    return this.playersService.addNote(id, body.content, req.user.id);
+    return this.playersService.addNote(id, dto.content, req.user.id);
+  }
+
+  @Get(':id/login-history')
+  getLoginHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.playersService.getLoginHistory(id);
   }
 
   // ---- KYC ----
 
   @Get(':id/kyc')
   getKYC(@Param('id', ParseIntPipe) id: number) {
-    return this.playersService.getKYC(id);
+    return this.kycService.getKYC(id);
   }
 
   @Put(':id/kyc')
   upsertKYC(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      kycLevel?: string;
-      idDocType?: string;
-      idDocNumber?: string;
-      idDocExpiry?: string;
-      idDocIssuingCountry?: string;
-      idDocStatus?: string;
-      idDocUrl?: string;
-      poaDocType?: string;
-      poaDocStatus?: string;
-      poaDocUrl?: string;
-      sofDocStatus?: string;
-      sofDocUrl?: string;
-      sofDescription?: string;
-      pepStatus?: string;
-      pepNotes?: string;
-    },
+    @Body() dto: UpsertKycDto,
     @Request() req,
   ) {
-    return this.playersService.upsertKYC(
-      id,
-      {
-        ...body,
-        idDocExpiry: body.idDocExpiry ? new Date(body.idDocExpiry) : undefined,
-      },
-      req.user.id,
-    );
+    return this.kycService.upsertKYC(id, dto, req.user.id, req.user);
   }
 
   // ---- Payments ----
 
   @Get(':id/payments')
   getPayments(@Param('id', ParseIntPipe) id: number) {
-    return this.playersService.getPayments(id);
+    return this.paymentsService.getPayments(id);
   }
 
   @Post(':id/payments')
-  addPayment(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      type: string;
-      amount: number;
-      currency?: string;
-      status?: string;
-      paymentMethod?: string;
-      accountNumber?: string;
-      reference?: string;
-      notes?: string;
-    },
-  ) {
-    return this.playersService.addPayment(id, body);
+  addPayment(@Param('id', ParseIntPipe) id: number, @Body() dto: AddPaymentDto, @Request() req) {
+    return this.paymentsService.addPayment(id, dto, req.user);
   }
 
   @Put('payments/:paymentId/status')
   updatePaymentStatus(
     @Param('paymentId', ParseIntPipe) paymentId: number,
-    @Body() body: { status: string },
+    @Body() dto: UpdatePaymentStatusDto,
+    @Request() req,
   ) {
-    return this.playersService.updatePaymentStatus(paymentId, body.status);
+    return this.paymentsService.updatePaymentStatus(paymentId, dto.status, req.user);
   }
 
   // ---- Bonuses ----
 
   @Get(':id/bonuses')
   getBonuses(@Param('id', ParseIntPipe) id: number) {
-    return this.playersService.getBonuses(id);
+    return this.bonusesService.getBonuses(id);
   }
 
   @Post(':id/bonuses')
   addBonus(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      type: string;
-      description?: string;
-      amount: number;
-      wagering?: number;
-      maxWinAmount?: number;
-      expiresAt?: string;
-    },
+    @Body() dto: AddBonusDto,
     @Request() req,
   ) {
-    return this.playersService.addBonus(
-      id,
-      {
-        ...body,
-        expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
-      },
-      req.user.id,
-    );
+    return this.bonusesService.addBonus(id, dto, req.user.id, req.user);
   }
 
   @Put('bonuses/:bonusId/status')
   updateBonusStatus(
     @Param('bonusId', ParseIntPipe) bonusId: number,
-    @Body() body: { status: string },
+    @Body() dto: UpdateBonusStatusDto,
+    @Request() req,
   ) {
-    return this.playersService.updateBonusStatus(bonusId, body.status);
+    return this.bonusesService.updateBonusStatus(bonusId, dto.status, req.user);
   }
 
   // ---- Responsible Gaming ----
 
   @Get(':id/rg')
   getRGLimits(@Param('id', ParseIntPipe) id: number) {
-    return this.playersService.getRGLimits(id);
+    return this.rgService.getRGLimits(id);
   }
 
   @Post(':id/rg')
-  addRGLimit(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
-      type: string;
-      period?: string;
-      amount?: number;
-      duration?: number;
-      endDate?: string;
-      coolingOffUntil?: string;
-      excludedUntil?: string;
-      therapyFlag?: boolean;
-    },
-  ) {
-    return this.playersService.addRGLimit(id, {
-      ...body,
-      endDate: body.endDate ? new Date(body.endDate) : undefined,
-      coolingOffUntil: body.coolingOffUntil ? new Date(body.coolingOffUntil) : undefined,
-      excludedUntil: body.excludedUntil ? new Date(body.excludedUntil) : undefined,
-    });
+  addRGLimit(@Param('id', ParseIntPipe) id: number, @Body() dto: AddRgLimitDto) {
+    return this.rgService.addRGLimit(id, dto);
   }
 
   @Put('rg/:limitId/status')
   updateRGLimitStatus(
     @Param('limitId', ParseIntPipe) limitId: number,
-    @Body() body: { status: string },
+    @Body() dto: UpdateRgLimitStatusDto,
   ) {
-    return this.playersService.updateRGLimitStatus(limitId, body.status);
-  }
-
-  // ---- Login History ----
-
-  @Get(':id/login-history')
-  getLoginHistory(@Param('id', ParseIntPipe) id: number) {
-    return this.playersService.getLoginHistory(id);
+    return this.rgService.updateRGLimitStatus(limitId, dto.status);
   }
 }

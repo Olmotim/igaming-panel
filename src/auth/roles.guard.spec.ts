@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { RolesGuard } from './roles.guard';
 
 describe('RolesGuard', () => {
@@ -24,7 +25,7 @@ describe('RolesGuard', () => {
   });
 
   // Helper para construir un ExecutionContext falso con el user que queramos
-  function createMockContext(user: { role: string }): ExecutionContext {
+  function createMockContext(user: { role: Role }): ExecutionContext {
     return {
       getHandler: jest.fn(),
       getClass: jest.fn(),
@@ -34,10 +35,10 @@ describe('RolesGuard', () => {
     } as unknown as ExecutionContext;
   }
 
-  it('debería permitir el acceso si el endpoint no requiere roles específicos', () => {
+  it('debería permitir el acceso si el endpoint no requiere un rol mínimo', () => {
     // Arrange: el endpoint NO tiene @Roles(...), así que el reflector devuelve undefined
     reflector.getAllAndOverride.mockReturnValue(undefined);
-    const context = createMockContext({ role: 'agent' });
+    const context = createMockContext({ role: Role.AGENT });
 
     // Act
     const result = guard.canActivate(context);
@@ -46,10 +47,10 @@ describe('RolesGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('debería permitir el acceso si el rol del usuario está en los roles requeridos', () => {
-    // Arrange: el endpoint requiere 'admin', y el usuario ES admin
-    reflector.getAllAndOverride.mockReturnValue(['admin']);
-    const context = createMockContext({ role: 'admin' });
+  it('debería permitir el acceso si el rol del usuario coincide exactamente con el mínimo requerido', () => {
+    // Arrange: el endpoint requiere ADMIN como mínimo, y el usuario ES admin
+    reflector.getAllAndOverride.mockReturnValue(Role.ADMIN);
+    const context = createMockContext({ role: Role.ADMIN });
 
     // Act
     const result = guard.canActivate(context);
@@ -58,10 +59,22 @@ describe('RolesGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('debería denegar el acceso si el rol del usuario NO está en los roles requeridos', () => {
-    // Arrange: el endpoint requiere 'admin', pero el usuario es 'agent'
-    reflector.getAllAndOverride.mockReturnValue(['admin']);
-    const context = createMockContext({ role: 'agent' });
+  it('debería permitir el acceso si el rol del usuario está por encima del mínimo requerido', () => {
+    // Arrange: el endpoint requiere SUPERVISOR como mínimo, y el usuario es ADMIN (jerarquía superior)
+    reflector.getAllAndOverride.mockReturnValue(Role.SUPERVISOR);
+    const context = createMockContext({ role: Role.ADMIN });
+
+    // Act
+    const result = guard.canActivate(context);
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it('debería denegar el acceso si el rol del usuario está por debajo del mínimo requerido', () => {
+    // Arrange: el endpoint requiere ADMIN como mínimo, pero el usuario es AGENT
+    reflector.getAllAndOverride.mockReturnValue(Role.ADMIN);
+    const context = createMockContext({ role: Role.AGENT });
 
     // Act
     const result = guard.canActivate(context);

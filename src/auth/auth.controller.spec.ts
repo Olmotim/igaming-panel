@@ -32,15 +32,15 @@ describe('AuthController', () => {
   });
 
   describe('register', () => {
-    it('debería llamar a authService.register con el email y password del body, y devolver su resultado', async () => {
+    it('debería llamar a authService.register con el email y password del dto, y devolver su resultado', async () => {
       // Arrange
       const expectedResult = { id: 1, email: 'olmo@test.com', role: 'user' };
       authService.register.mockResolvedValue(expectedResult);
 
-      const body = { email: 'olmo@test.com', password: 'password123' };
+      const dto = { email: 'olmo@test.com', password: 'password123' };
 
       // Act
-      const result = await controller.register(body);
+      const result = await controller.register(dto);
 
       // Assert
       expect(authService.register).toHaveBeenCalledWith('olmo@test.com', 'password123');
@@ -49,50 +49,60 @@ describe('AuthController', () => {
   });
 
   describe('login', () => {
-    it('debería llamar a authService.login con el email y password del body, y devolver su resultado', async () => {
+    it('debería setear el refresh_token como cookie httpOnly y devolver solo el access_token en el body', async () => {
       // Arrange
-      const expectedResult = { access_token: 'fake-access', refresh_token: 'fake-refresh' };
-      authService.login.mockResolvedValue(expectedResult);
-
-      const body = { email: 'olmo@test.com', password: 'password123' };
+      authService.login.mockResolvedValue({ access_token: 'fake-access', refresh_token: 'fake-refresh' });
+      const mockRes = { cookie: jest.fn() };
+      const dto = { email: 'olmo@test.com', password: 'password123' };
 
       // Act
-      const result = await controller.login(body);
+      const result = await controller.login(dto, mockRes as any);
 
       // Assert
       expect(authService.login).toHaveBeenCalledWith('olmo@test.com', 'password123');
-      expect(result).toEqual(expectedResult);
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        'fake-refresh',
+        expect.objectContaining({ httpOnly: true, path: '/auth' }),
+      );
+      expect(result).toEqual({ access_token: 'fake-access' });
     });
   });
 
   describe('refresh', () => {
-    it('debería llamar a authService.refresh con el refresh_token del body, y devolver su resultado', async () => {
+    it('debería leer el refresh_token de la cookie, renovar la cookie y devolver solo el access_token', async () => {
       // Arrange
-      const expectedResult = { access_token: 'nuevo-access', refresh_token: 'nuevo-refresh' };
-      authService.refresh.mockResolvedValue(expectedResult);
-
-      const body = { refresh_token: 'token-del-cliente' };
+      authService.refresh.mockResolvedValue({ access_token: 'nuevo-access', refresh_token: 'nuevo-refresh' });
+      const mockReq = { cookies: { refresh_token: 'token-del-cliente' } };
+      const mockRes = { cookie: jest.fn() };
 
       // Act
-      const result = await controller.refresh(body);
+      const result = await controller.refresh(mockReq as any, mockRes as any);
 
       // Assert
       expect(authService.refresh).toHaveBeenCalledWith('token-del-cliente');
-      expect(result).toEqual(expectedResult);
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        'nuevo-refresh',
+        expect.objectContaining({ httpOnly: true, path: '/auth' }),
+      );
+      expect(result).toEqual({ access_token: 'nuevo-access' });
     });
   });
 
   describe('logout', () => {
-    it('debería llamar a authService.logout con el id del usuario autenticado', async () => {
+    it('debería limpiar la cookie de refresh_token y llamar a authService.logout con el id del usuario autenticado', async () => {
       // Arrange: simulamos el objeto `req` tal como lo dejaría JwtAuthGuard tras validar el token
       const mockRequest = { user: { id: 1, email: 'olmo@test.com', role: 'agent' } };
+      const mockRes = { clearCookie: jest.fn() };
       const expectedResult = { message: 'Sesión cerrada correctamente' };
       authService.logout.mockResolvedValue(expectedResult);
 
       // Act
-      const result = await controller.logout(mockRequest);
+      const result = await controller.logout(mockRequest, mockRes as any);
 
       // Assert
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token', { path: '/auth' });
       expect(authService.logout).toHaveBeenCalledWith(1);
       expect(result).toEqual(expectedResult);
     });
